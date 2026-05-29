@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OSC AutoFraming System</title>
+    <title>Batch Photo Framer Studio Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; background-color: #f3f4f6; margin: 0; padding: 40px; display: flex; flex-direction: column; align-items: center; }
@@ -39,9 +39,16 @@
         .modal-body { background: white; padding: 25px; border-radius: 12px; max-width: 450px; width: 90%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
         .canvas-container { position: relative; width: 300px; height: 300px; margin: 0 auto 20px auto; border: 2px dashed #cbd5e1; background: #f1f5f9; display: flex; justify-content: center; align-items: center; overflow: hidden; }
         .modal-canvas { max-width: 100%; max-height: 100%; }
-        .control-panel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+        
+        /* Adjustment Sliders & Controls Layout */
+        .control-panel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
         .control-btn { padding: 8px; background: #e2e8f0; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; color: #334155; width: 100%; }
         .control-btn:hover { background: #cbd5e1; }
+        
+        .slider-group { margin-bottom: 20px; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; text-align: left; }
+        .slider-label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+        .brightness-slider { width: 100%; margin: 0; cursor: pointer; }
+
         .action-row { display: flex; gap: 10px; }
         .save-btn { background: #10b981; }
         .save-btn:hover { background: #059669; }
@@ -65,7 +72,7 @@
 <body>
 
 <div class="card">
-    <h2>OSC Photo Framing</h2>
+    <h2>Batch Photo Framer</h2>
     <div class="subtitle">Process up to 100 photos with custom position adjustments</div>
     
     <div class="group">
@@ -116,9 +123,17 @@
             <button class="control-btn" onclick="adjustPosition('scale', 0.05)">🔍 Zoom In</button>
             <button class="control-btn" onclick="adjustPosition('y', 10)">🔽 Down</button>
             <button class="control-btn" onclick="adjustPosition('x', -10)">◀️ Left</button>
-            <button class="control-btn" onclick="adjustPosition('reset', 0)">🔄 Reset</button>
+            <button class="control-btn" onclick="adjustPosition('reset', 0)">🔄 Reset All</button>
             <button class="control-btn" onclick="adjustPosition('x', 10)">▶️ Right</button>
             <button class="control-btn" style="grid-column: span 3" onclick="adjustPosition('scale', -0.05)">🔎 Zoom Out</button>
+        </div>
+
+        <div class="slider-group">
+            <div class="slider-label">
+                <span>☀️ Photo Brightness</span>
+                <span id="brightnessValDisplay">100%</span>
+            </div>
+            <input type="range" id="brightnessSlider" class="brightness-slider" min="50" max="150" value="100" oninput="handleBrightnessSliderChange(this.value)">
         </div>
         
         <div class="action-row">
@@ -134,11 +149,12 @@ let frameImageGlobal = null;
 let photoWorkspaceArray = []; 
 let activeIndex = null; 
 
+// Temporary tracker states
 let tempScale = 1.0;
 let tempXOffset = 0;
 let tempYOffset = 0;
+let tempBrightness = 100; // Tracked as percentage scale (e.g., 100 = default)
 
-// Logic Fix: Maximum file verification limit bumped cleanly to 100
 function validatePhotoCount() {
     const input = document.getElementById('photoInput');
     if (input.files.length > 100) {
@@ -190,7 +206,7 @@ async function loadPhotosToWorkspace() {
                 initialScale: baseScale,
                 xOffset: 0,
                 yOffset: 0,
-                blobUrl: null
+                brightness: 100 // Default state baseline percentage
             });
             
             const gridItem = document.createElement('div');
@@ -225,12 +241,18 @@ function renderThumbnail(index) {
     
     ctx.clearRect(0,0, canvas.width, canvas.height);
     
+    // Setup photo dimension positioning bounds
     const photoW = item.img.width * item.scale;
     const photoH = item.img.height * item.scale;
     const pasteX = ((canvas.width - photoW) / 2) + item.xOffset;
     const pasteY = ((canvas.height - photoH) / 2) + item.yOffset;
     
+    // Safe Canvas State Insulation to exclusively apply filters to the user image background layer
+    ctx.save();
+    ctx.filter = `brightness(${item.brightness}%)`;
     ctx.drawImage(item.img, pasteX, pasteY, photoW, photoH);
+    ctx.restore(); // Restore state context instantly before dropping the frame graphics directly on top
+    
     ctx.drawImage(frameImageGlobal, 0, 0, canvas.width, canvas.height);
 }
 
@@ -241,6 +263,11 @@ function openAdjustmentModal(index) {
     tempScale = item.scale;
     tempXOffset = item.xOffset;
     tempYOffset = item.yOffset;
+    tempBrightness = item.brightness;
+    
+    // Sync UI slider components with historical tracked configuration variables
+    document.getElementById('brightnessSlider').value = tempBrightness;
+    document.getElementById('brightnessValDisplay').innerText = `${tempBrightness}%`;
     
     document.getElementById('adjustModal').style.display = "flex";
     drawModalCanvas();
@@ -261,8 +288,19 @@ function drawModalCanvas() {
     const pasteX = ((canvas.width - photoW) / 2) + tempXOffset;
     const pasteY = ((canvas.height - photoH) / 2) + tempYOffset;
     
+    // Render back layer photo canvas parameters with targeted custom filters applied
+    ctx.save();
+    ctx.filter = `brightness(${tempBrightness}%)`;
     ctx.drawImage(item.img, pasteX, pasteY, photoW, photoH);
+    ctx.restore();
+    
     ctx.drawImage(frameImageGlobal, 0, 0, canvas.width, canvas.height);
+}
+
+function handleBrightnessSliderChange(val) {
+    tempBrightness = parseInt(val);
+    document.getElementById('brightnessValDisplay').innerText = `${tempBrightness}%`;
+    drawModalCanvas();
 }
 
 function adjustPosition(axis, delta) {
@@ -274,6 +312,9 @@ function adjustPosition(axis, delta) {
         tempScale = item.initialScale;
         tempXOffset = 0;
         tempYOffset = 0;
+        tempBrightness = 100;
+        document.getElementById('brightnessSlider').value = 100;
+        document.getElementById('brightnessValDisplay').innerText = "100%";
     }
     drawModalCanvas();
 }
@@ -288,6 +329,7 @@ function saveAdjustments() {
     item.scale = tempScale;
     item.xOffset = tempXOffset;
     item.yOffset = tempYOffset;
+    item.brightness = tempBrightness;
     
     renderThumbnail(activeIndex);
     closeModal();
@@ -348,7 +390,12 @@ async function compileFinalZip() {
         const pasteX = ((canvas.width - photoW) / 2) + item.xOffset;
         const pasteY = ((canvas.height - photoH) / 2) + item.yOffset;
         
+        // Final generation canvas rendering process with individual user adjustments
+        ctx.save();
+        ctx.filter = `brightness(${item.brightness}%)`;
         ctx.drawImage(item.img, pasteX, pasteY, photoW, photoH);
+        ctx.restore();
+        
         ctx.drawImage(frameImageGlobal, 0, 0, canvas.width, canvas.height);
         
         const blobPromise = new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.90));

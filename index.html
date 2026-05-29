@@ -36,19 +36,26 @@
 
         /* Fine-Tuning Adjustment Modal Pop-up Box */
         .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-body { background: white; padding: 25px; border-radius: 12px; max-width: 500px; width: 95%; max-height: 90vh; overflow-y: auto; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-body { background: white; padding: 25px; border-radius: 12px; max-width: 500px; width: 95%; max-height: 95vh; overflow-y: auto; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
         .canvas-container { position: relative; width: 260px; height: 260px; margin: 0 auto 15px auto; border: 2px dashed #cbd5e1; background: #f1f5f9; display: flex; justify-content: center; align-items: center; overflow: hidden; }
         .modal-canvas { max-width: 100%; max-height: 100%; }
         
         /* Adjustment Sliders & Controls Layout */
-        .control-panel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 15px; }
+        .control-panel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 15px; }
         .control-btn { padding: 6px; background: #e2e8f0; border: none; border-radius: 4px; font-size: 11px; font-weight: 600; color: #334155; width: 100%; }
         .control-btn:hover { background: #cbd5e1; }
+        .reset-all-btn { background: #fca5a5; color: #991b1b; grid-column: span 2; }
+        .reset-all-btn:hover { background: #f87171; }
+        .reset-tones-btn { background: #fed7aa; color: #9a3412; grid-column: span 2; }
+        .reset-tones-btn:hover { background: #fdba74; }
         
-        .sliders-section { background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .sliders-section { background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .slider-group { margin-bottom: 0; }
         .slider-label { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 4px; }
         .adjustment-slider { width: 100%; margin: 0; cursor: pointer; }
+
+        .apply-all-btn { width: 100%; padding: 10px; background-color: #8b5cf6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; margin-bottom: 20px; transition: background 0.2s; }
+        .apply-all-btn:hover { background-color: #7c3aed; }
 
         .action-row { display: flex; gap: 10px; }
         .save-btn { background: #10b981; }
@@ -139,11 +146,13 @@
         <div class="control-panel">
             <button class="control-btn" onclick="adjustPosition('y', -10)">🔼 Up</button>
             <button class="control-btn" onclick="adjustPosition('scale', 0.05)">🔍 Zoom In</button>
-            <button class="control-btn" onclick="adjustPosition('y', 10)">🔽 Down</button>
             <button class="control-btn" onclick="adjustPosition('x', -10)">◀️ Left</button>
-            <button class="control-btn" onclick="adjustPosition('reset', 0)">🔄 Reset All</button>
             <button class="control-btn" onclick="adjustPosition('x', 10)">▶️ Right</button>
-            <button class="control-btn" style="grid-column: span 3" onclick="adjustPosition('scale', -0.05)">🔎 Zoom Out</button>
+            <button class="control-btn" onclick="adjustPosition('y', 10)">🔽 Down</button>
+            <button class="control-btn" onclick="adjustPosition('scale', -0.05)">🔎 Zoom Out</button>
+            
+            <button class="control-btn reset-tones-btn" onclick="adjustPosition('resetTones', 0)">🔄 Reset Tones Only</button>
+            <button class="control-btn reset-all-btn" onclick="adjustPosition('resetAll', 0)">💥 Reset Everything</button>
         </div>
 
         <div class="sliders-section">
@@ -172,6 +181,8 @@
                 <input type="range" id="sld-blacks" class="adjustment-slider" min="-50" max="50" value="0" oninput="handleSliderEvent('blacks', this.value)">
             </div>
         </div>
+
+        <button class="apply-all-btn" onclick="applyTonesToAllPhotos()">📢 Apply Current Lighting To All Photos</button>
         
         <div class="action-row">
             <button class="cancel-btn" onclick="closeModal()">Cancel</button>
@@ -186,12 +197,9 @@ let frameImageGlobal = null;
 let photoWorkspaceArray = []; 
 let activeIndex = null; 
 
-// Vector Position States
 let tempScale = 1.0;
 let tempXOffset = 0;
 let tempYOffset = 0;
-
-// Upgraded 6-Axis Raw State Tracking Registers (Centered baseline at 0 for accurate adjustments)
 let currentTones = { brightness: 0, contrast: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0 };
 
 function validatePhotoCount() {
@@ -269,7 +277,6 @@ async function loadPhotosToWorkspace() {
     }
 }
 
-// Generates mathematical mapping configurations for the active configuration sliders
 function setupSvgFilterEngine(tones) {
     const b = tones.brightness / 100;
     const c = (tones.contrast + 100) / 100;
@@ -278,10 +285,8 @@ function setupSvgFilterEngine(tones) {
     const w = tones.whites / 100;
     const bl = tones.blacks / 100;
 
-    // Apply Contrast adjustment relative to midtone grey balance lines
     const t = (1 - c) * 0.5;
 
-    // Update Color Matrix Engine values
     const matrixNode = document.getElementById('matrixNode');
     if (matrixNode) {
         matrixNode.setAttribute('values', `
@@ -292,20 +297,15 @@ function setupSvgFilterEngine(tones) {
         `);
     }
 
-    // Dynamic parametric gamma distribution curves matching professional lighting desks
     const funcs = ['transferNode'].map(id => document.getElementById(id))[0];
     if (funcs) {
         const children = funcs.children;
         for (let i = 0; i < 3; i++) {
-            // Complex tone curves mapped to independent channels
             children[i].setAttribute('type', 'table');
-            
-            // Baseline Anchor points computed dynamically
             let pBlack = Math.max(0, 0.0 + bl * 0.2);
             let pShadow = Math.max(0, 0.25 + s * 0.15);
             let pHighlight = Math.min(1, 0.75 + h * 0.15);
             let pWhite = Math.min(1, 1.0 + w * 0.2);
-            
             children[i].setAttribute('tableValues', `${pBlack} ${pShadow} 0.5 ${pHighlight} ${pWhite}`);
         }
     }
@@ -327,6 +327,8 @@ function renderThumbnail(index) {
     const pasteY = ((canvas.height - photoH) / 2) + item.yOffset;
     
     ctx.save();
+    // QUALITY UPGRADE: Anti-blur filtering architecture
+    ctx.imageSmoothingEnabled = false;
     setupSvgFilterEngine(item.tones);
     ctx.filter = 'url(#runtimeTonalFilter)';
     ctx.drawImage(item.img, pasteX, pasteY, photoW, photoH);
@@ -344,14 +346,17 @@ function openAdjustmentModal(index) {
     tempYOffset = item.yOffset;
     currentTones = { ...item.tones };
     
-    // Sync UI elements across all 6 channels simultaneously
+    syncSlidersToUI();
+    
+    document.getElementById('adjustModal').style.display = "flex";
+    drawModalCanvas();
+}
+
+function syncSlidersToUI() {
     Object.keys(currentTones).forEach(key => {
         document.getElementById(`sld-${key}`).value = currentTones[key];
         document.getElementById(`lbl-${key}`).innerText = (currentTones[key] > 0 ? '+' : '') + currentTones[key];
     });
-    
-    document.getElementById('adjustModal').style.display = "flex";
-    drawModalCanvas();
 }
 
 function drawModalCanvas() {
@@ -369,6 +374,7 @@ function drawModalCanvas() {
     const pasteY = ((canvas.height - photoH) / 2) + tempYOffset;
     
     ctx.save();
+    ctx.imageSmoothingEnabled = false;
     setupSvgFilterEngine(currentTones);
     ctx.filter = 'url(#runtimeTonalFilter)';
     ctx.drawImage(item.img, pasteX, pasteY, photoW, photoH);
@@ -383,21 +389,34 @@ function handleSliderEvent(metric, val) {
     drawModalCanvas();
 }
 
+function applyTonesToAllPhotos() {
+    if (photoWorkspaceArray.length === 0) return;
+    
+    for (let i = 0; i < photoWorkspaceArray.length; i++) {
+        photoWorkspaceArray[i].tones = { ...currentTones };
+        renderThumbnail(i);
+    }
+    
+    alert(`Success: Applied current lighting presets cleanly across all ${photoWorkspaceArray.length} loaded workspace items.`);
+}
+
 function adjustPosition(axis, delta) {
     const item = photoWorkspaceArray[activeIndex];
     if (axis === 'x') tempXOffset += delta;
     if (axis === 'y') tempYOffset += delta;
     if (axis === 'scale') tempScale = Math.max(0.05, tempScale + delta);
-    if (axis === 'reset') {
+    
+    if (axis === 'resetTones') {
+        currentTones = { brightness: 0, contrast: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0 };
+        syncSlidersToUI();
+    }
+    
+    if (axis === 'resetAll') {
         tempScale = item.initialScale;
         tempXOffset = 0;
         tempYOffset = 0;
         currentTones = { brightness: 0, contrast: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0 };
-        
-        Object.keys(currentTones).forEach(key => {
-            document.getElementById(`sld-${key}`).value = 0;
-            document.getElementById(`lbl-${key}`).innerText = "0";
-        });
+        syncSlidersToUI();
     }
     drawModalCanvas();
 }
@@ -474,6 +493,8 @@ async function compileFinalZip() {
         const pasteY = ((canvas.height - photoH) / 2) + item.yOffset;
         
         ctx.save();
+        // QUALITY UPGRADE: Zero blur sub-pixel aliasing management
+        ctx.imageSmoothingEnabled = false;
         setupSvgFilterEngine(item.tones);
         ctx.filter = 'url(#runtimeTonalFilter)';
         ctx.drawImage(item.img, pasteX, pasteY, photoW, photoH);
@@ -481,10 +502,11 @@ async function compileFinalZip() {
         
         ctx.drawImage(frameImageGlobal, 0, 0, canvas.width, canvas.height);
         
-        const blobPromise = new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.90));
+        // QUALITY UPGRADE: Exporting to uncompressed image/png instead of lossy jpeg to preserve original features
+        const blobPromise = new Promise(resolve => canvas.toBlob(resolve, "image/png"));
         const imageBlob = await blobPromise;
         
-        const safeName = item.name.replace(/\.[^/.]+$/, "") + "_framed.jpg";
+        const safeName = item.name.replace(/\.[^/.]+$/, "") + "_framed.png";
         zip.file(safeName, imageBlob);
         
         const progressPercent = Math.round(((i + 1) / totalFiles) * 85);

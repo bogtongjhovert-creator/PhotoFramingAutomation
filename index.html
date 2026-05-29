@@ -36,19 +36,18 @@
 
         /* Fine-Tuning Adjustment Modal Pop-up Box */
         .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-body { background: white; padding: 25px; border-radius: 12px; max-width: 450px; width: 90%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-        .canvas-container { position: relative; width: 300px; height: 300px; margin: 0 auto 20px auto; border: 2px dashed #cbd5e1; background: #f1f5f9; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .modal-body { background: white; padding: 25px; border-radius: 12px; max-width: 500px; width: 95%; max-height: 90vh; overflow-y: auto; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .canvas-container { position: relative; width: 260px; height: 260px; margin: 0 auto 15px auto; border: 2px dashed #cbd5e1; background: #f1f5f9; display: flex; justify-content: center; align-items: center; overflow: hidden; }
         .modal-canvas { max-width: 100%; max-height: 100%; }
         
         /* Adjustment Sliders & Controls Layout */
-        .control-panel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
-        .control-btn { padding: 8px; background: #e2e8f0; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; color: #334155; width: 100%; }
+        .control-panel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 15px; }
+        .control-btn { padding: 6px; background: #e2e8f0; border: none; border-radius: 4px; font-size: 11px; font-weight: 600; color: #334155; width: 100%; }
         .control-btn:hover { background: #cbd5e1; }
         
-        .sliders-section { background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 20px; }
-        .slider-group { margin-bottom: 12px; }
-        .slider-group:last-child { margin-bottom: 0; }
-        .slider-label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+        .sliders-section { background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .slider-group { margin-bottom: 0; }
+        .slider-label { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 4px; }
         .adjustment-slider { width: 100%; margin: 0; cursor: pointer; }
 
         .action-row { display: flex; gap: 10px; }
@@ -73,9 +72,26 @@
 </head>
 <body>
 
+<svg id="studioFilterSvg" width="0" height="0" style="position:absolute; z-index:-100; opacity:0;">
+  <defs>
+    <filter id="runtimeTonalFilter">
+      <feComponentTransfer id="transferNode">
+        <feFuncR type="linear" slope="1" intercept="0"/>
+        <feFuncG type="linear" slope="1" intercept="0"/>
+        <feFuncB type="linear" slope="1" intercept="0"/>
+      </feComponentTransfer>
+      <feColorMatrix id="matrixNode" type="matrix" values="
+        1 0 0 0 0
+        0 1 0 0 0
+        0 0 1 0 0
+        0 0 0 1 0"/>
+    </filter>
+  </defs>
+</svg>
+
 <div class="card">
     <h2>Batch Photo Framer</h2>
-    <div class="subtitle">Process up to 100 photos with custom positions & image controls</div>
+    <div class="subtitle">Process up to 100 photos with advanced 6-Axis pro light controls</div>
     
     <div class="group">
         <label id="photoLabel">1. Select User Photos (Max 100)</label>
@@ -115,7 +131,7 @@
 
 <div class="modal-overlay" id="adjustModal">
     <div class="modal-body">
-        <h3 style="margin-top: 0; color: #1f2937;">Adjust Photo Position</h3>
+        <h3 style="margin-top: 0; color: #1f2937; font-size:16px;">Adjust Photo Matrix</h3>
         <div class="canvas-container">
             <canvas id="modalCanvas" class="modal-canvas"></canvas>
         </div>
@@ -132,19 +148,28 @@
 
         <div class="sliders-section">
             <div class="slider-group">
-                <div class="slider-label">
-                    <span>☀️ Brightness</span>
-                    <span id="brightnessValDisplay">100%</span>
-                </div>
-                <input type="range" id="brightnessSlider" class="adjustment-slider" min="50" max="150" value="100" oninput="handleSliderChange('brightness', this.value)">
+                <div class="slider-label"><span>☀️ Brightness</span><span id="lbl-brightness">0</span></div>
+                <input type="range" id="sld-brightness" class="adjustment-slider" min="-50" max="50" value="0" oninput="handleSliderEvent('brightness', this.value)">
             </div>
-            
             <div class="slider-group">
-                <div class="slider-label">
-                    <span>🌓 Contrast</span>
-                    <span id="contrastValDisplay">100%</span>
-                </div>
-                <input type="range" id="contrastSlider" class="adjustment-slider" min="50" max="150" value="100" oninput="handleSliderChange('contrast', this.value)">
+                <div class="slider-label"><span>🌓 Contrast</span><span id="lbl-contrast">0</span></div>
+                <input type="range" id="sld-contrast" class="adjustment-slider" min="-50" max="50" value="0" oninput="handleSliderEvent('contrast', this.value)">
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span>💥 Highlights</span><span id="lbl-highlights">0</span></div>
+                <input type="range" id="sld-highlights" class="adjustment-slider" min="-50" max="50" value="0" oninput="handleSliderEvent('highlights', this.value)">
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span>👥 Shadows</span><span id="lbl-shadows">0</span></div>
+                <input type="range" id="sld-shadows" class="adjustment-slider" min="-50" max="50" value="0" oninput="handleSliderEvent('shadows', this.value)">
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span>🏳️ Whites</span><span id="lbl-whites">0</span></div>
+                <input type="range" id="sld-whites" class="adjustment-slider" min="-50" max="50" value="0" oninput="handleSliderEvent('whites', this.value)">
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span>🏴 Blacks</span><span id="lbl-blacks">0</span></div>
+                <input type="range" id="sld-blacks" class="adjustment-slider" min="-50" max="50" value="0" oninput="handleSliderEvent('blacks', this.value)">
             </div>
         </div>
         
@@ -161,12 +186,13 @@ let frameImageGlobal = null;
 let photoWorkspaceArray = []; 
 let activeIndex = null; 
 
-// Temporary state parameters
+// Vector Position States
 let tempScale = 1.0;
 let tempXOffset = 0;
 let tempYOffset = 0;
-let tempBrightness = 100; 
-let tempContrast = 100; // Tracked baseline percentage (e.g., 100 = default)
+
+// Upgraded 6-Axis Raw State Tracking Registers (Centered baseline at 0 for accurate adjustments)
+let currentTones = { brightness: 0, contrast: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0 };
 
 function validatePhotoCount() {
     const input = document.getElementById('photoInput');
@@ -219,8 +245,7 @@ async function loadPhotosToWorkspace() {
                 initialScale: baseScale,
                 xOffset: 0,
                 yOffset: 0,
-                brightness: 100,
-                contrast: 100 // Track default contrast baseline value
+                tones: { brightness: 0, contrast: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0 }
             });
             
             const gridItem = document.createElement('div');
@@ -244,6 +269,48 @@ async function loadPhotosToWorkspace() {
     }
 }
 
+// Generates mathematical mapping configurations for the active configuration sliders
+function setupSvgFilterEngine(tones) {
+    const b = tones.brightness / 100;
+    const c = (tones.contrast + 100) / 100;
+    const h = tones.highlights / 100;
+    const s = tones.shadows / 100;
+    const w = tones.whites / 100;
+    const bl = tones.blacks / 100;
+
+    // Apply Contrast adjustment relative to midtone grey balance lines
+    const t = (1 - c) * 0.5;
+
+    // Update Color Matrix Engine values
+    const matrixNode = document.getElementById('matrixNode');
+    if (matrixNode) {
+        matrixNode.setAttribute('values', `
+            ${c} 0 0 0 ${b + t}
+            0 ${c} 0 0 ${b + t}
+            0 0 ${c} 0 ${b + t}
+            0 0 0 1 0
+        `);
+    }
+
+    // Dynamic parametric gamma distribution curves matching professional lighting desks
+    const funcs = ['transferNode'].map(id => document.getElementById(id))[0];
+    if (funcs) {
+        const children = funcs.children;
+        for (let i = 0; i < 3; i++) {
+            // Complex tone curves mapped to independent channels
+            children[i].setAttribute('type', 'table');
+            
+            // Baseline Anchor points computed dynamically
+            let pBlack = Math.max(0, 0.0 + bl * 0.2);
+            let pShadow = Math.max(0, 0.25 + s * 0.15);
+            let pHighlight = Math.min(1, 0.75 + h * 0.15);
+            let pWhite = Math.min(1, 1.0 + w * 0.2);
+            
+            children[i].setAttribute('tableValues', `${pBlack} ${pShadow} 0.5 ${pHighlight} ${pWhite}`);
+        }
+    }
+}
+
 function renderThumbnail(index) {
     const item = photoWorkspaceArray[index];
     const canvas = document.getElementById(`thumb-canvas-${index}`);
@@ -252,7 +319,6 @@ function renderThumbnail(index) {
     
     canvas.width = frameImageGlobal.width;
     canvas.height = frameImageGlobal.height;
-    
     ctx.clearRect(0,0, canvas.width, canvas.height);
     
     const photoW = item.img.width * item.scale;
@@ -261,8 +327,8 @@ function renderThumbnail(index) {
     const pasteY = ((canvas.height - photoH) / 2) + item.yOffset;
     
     ctx.save();
-    // Chaining both active CSS filters cleanly into the pipeline execution loop
-    ctx.filter = `brightness(${item.brightness}%) contrast(${item.contrast}%)`;
+    setupSvgFilterEngine(item.tones);
+    ctx.filter = 'url(#runtimeTonalFilter)';
     ctx.drawImage(item.img, pasteX, pasteY, photoW, photoH);
     ctx.restore();
     
@@ -276,14 +342,13 @@ function openAdjustmentModal(index) {
     tempScale = item.scale;
     tempXOffset = item.xOffset;
     tempYOffset = item.yOffset;
-    tempBrightness = item.brightness;
-    tempContrast = item.contrast;
+    currentTones = { ...item.tones };
     
-    // Synchronize UI parameters instantly on click
-    document.getElementById('brightnessSlider').value = tempBrightness;
-    document.getElementById('brightnessValDisplay').innerText = `${tempBrightness}%`;
-    document.getElementById('contrastSlider').value = tempContrast;
-    document.getElementById('contrastValDisplay').innerText = `${tempContrast}%`;
+    // Sync UI elements across all 6 channels simultaneously
+    Object.keys(currentTones).forEach(key => {
+        document.getElementById(`sld-${key}`).value = currentTones[key];
+        document.getElementById(`lbl-${key}`).innerText = (currentTones[key] > 0 ? '+' : '') + currentTones[key];
+    });
     
     document.getElementById('adjustModal').style.display = "flex";
     drawModalCanvas();
@@ -296,7 +361,6 @@ function drawModalCanvas() {
     
     canvas.width = frameImageGlobal.width;
     canvas.height = frameImageGlobal.height;
-    
     ctx.clearRect(0,0, canvas.width, canvas.height);
     
     const photoW = item.img.width * tempScale;
@@ -305,23 +369,17 @@ function drawModalCanvas() {
     const pasteY = ((canvas.height - photoH) / 2) + tempYOffset;
     
     ctx.save();
-    // Chain brightness and contrast adjustments together onto backlayer photo drawing pass
-    ctx.filter = `brightness(${tempBrightness}%) contrast(${tempContrast}%)`;
+    setupSvgFilterEngine(currentTones);
+    ctx.filter = 'url(#runtimeTonalFilter)';
     ctx.drawImage(item.img, pasteX, pasteY, photoW, photoH);
     ctx.restore();
     
     ctx.drawImage(frameImageGlobal, 0, 0, canvas.width, canvas.height);
 }
 
-function handleSliderChange(type, val) {
-    const numericalVal = parseInt(val);
-    if (type === 'brightness') {
-        tempBrightness = numericalVal;
-        document.getElementById('brightnessValDisplay').innerText = `${numericalVal}%`;
-    } else if (type === 'contrast') {
-        tempContrast = numericalVal;
-        document.getElementById('contrastValDisplay').innerText = `${numericalVal}%`;
-    }
+function handleSliderEvent(metric, val) {
+    currentTones[metric] = parseInt(val);
+    document.getElementById(`lbl-${metric}`).innerText = (currentTones[metric] > 0 ? '+' : '') + currentTones[metric];
     drawModalCanvas();
 }
 
@@ -334,13 +392,12 @@ function adjustPosition(axis, delta) {
         tempScale = item.initialScale;
         tempXOffset = 0;
         tempYOffset = 0;
-        tempBrightness = 100;
-        tempContrast = 100;
+        currentTones = { brightness: 0, contrast: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0 };
         
-        document.getElementById('brightnessSlider').value = 100;
-        document.getElementById('brightnessValDisplay').innerText = "100%";
-        document.getElementById('contrastSlider').value = 100;
-        document.getElementById('contrastValDisplay').innerText = "100%";
+        Object.keys(currentTones).forEach(key => {
+            document.getElementById(`sld-${key}`).value = 0;
+            document.getElementById(`lbl-${key}`).innerText = "0";
+        });
     }
     drawModalCanvas();
 }
@@ -355,8 +412,7 @@ function saveAdjustments() {
     item.scale = tempScale;
     item.xOffset = tempXOffset;
     item.yOffset = tempYOffset;
-    item.brightness = tempBrightness;
-    item.contrast = tempContrast;
+    item.tones = { ...currentTones };
     
     renderThumbnail(activeIndex);
     closeModal();
@@ -418,8 +474,8 @@ async function compileFinalZip() {
         const pasteY = ((canvas.height - photoH) / 2) + item.yOffset;
         
         ctx.save();
-        // Pack matched filter parameters onto targeted binary data export pass execution loops
-        ctx.filter = `brightness(${item.brightness}%) contrast(${item.contrast}%)`;
+        setupSvgFilterEngine(item.tones);
+        ctx.filter = 'url(#runtimeTonalFilter)';
         ctx.drawImage(item.img, pasteX, pasteY, photoW, photoH);
         ctx.restore();
         

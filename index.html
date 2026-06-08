@@ -210,13 +210,14 @@ function validatePhotoCount() {
     }
 }
 
+// FORMAT UPGRADE: Leverages deep stream data URIs to map raw bytes regardless of file format extensions
 async function imagePromiseFactory(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => resolve(img);
-            img.onerror = () => reject(new Error("Failed to parse image parameters"));
+            img.onerror = () => reject(new Error("Failed to parse image parameters. Ensure file is an uncorrupted image asset."));
             img.src = e.target.result;
         };
         reader.readAsDataURL(file);
@@ -327,7 +328,6 @@ function renderThumbnail(index) {
     const pasteY = ((canvas.height - photoH) / 2) + item.yOffset;
     
     ctx.save();
-    // QUALITY UPGRADE: Anti-blur filtering architecture
     ctx.imageSmoothingEnabled = false;
     setupSvgFilterEngine(item.tones);
     ctx.filter = 'url(#runtimeTonalFilter)';
@@ -493,7 +493,6 @@ async function compileFinalZip() {
         const pasteY = ((canvas.height - photoH) / 2) + item.yOffset;
         
         ctx.save();
-        // QUALITY UPGRADE: Zero blur sub-pixel aliasing management
         ctx.imageSmoothingEnabled = false;
         setupSvgFilterEngine(item.tones);
         ctx.filter = 'url(#runtimeTonalFilter)';
@@ -502,7 +501,6 @@ async function compileFinalZip() {
         
         ctx.drawImage(frameImageGlobal, 0, 0, canvas.width, canvas.height);
         
-        // QUALITY UPGRADE: Exporting to uncompressed image/png instead of lossy jpeg to preserve original features
         const blobPromise = new Promise(resolve => canvas.toBlob(resolve, "image/png"));
         const imageBlob = await blobPromise;
         
